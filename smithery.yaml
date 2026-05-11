@@ -1,0 +1,12 @@
+# Smithery deployment configuration for QR Code MCP Server
+# https://smithery.ai/docs/deploy
+startCommand:
+  type: stdio
+  configSchema:
+    type: object
+    properties:
+      # No required secrets – the server runs with no external API keys
+    # No additional properties required
+  commandFunction: |
+    # python
+    python -m server
