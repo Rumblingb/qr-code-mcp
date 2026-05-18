@@ -16,7 +16,7 @@ import json
 import urllib.request
 from typing import Optional
 
-from mcp.server import Server, NotificationOptions
+from mcp.server.lowlevel import Server, NotificationOptions
 from mcp.server.models import InitializationOptions
 import mcp.server.stdio
 import mcp.types as types
