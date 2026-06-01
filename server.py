@@ -63,14 +63,18 @@ def _download_image(url: str) -> Image.Image:
 
     try:
         connection.connect()
+        if connection.sock is None:
+            raise ValueError("Unable to establish a network connection to logo URL host.")
         peer_ip = ipaddress.ip_address(connection.sock.getpeername()[0])
-        if (
-            peer_ip.is_private
-            or peer_ip.is_loopback
-            or peer_ip.is_link_local
-            or peer_ip.is_multicast
-            or peer_ip.is_reserved
-            or peer_ip.is_unspecified
+        if any(
+            (
+                peer_ip.is_private,
+                peer_ip.is_loopback,
+                peer_ip.is_link_local,
+                peer_ip.is_multicast,
+                peer_ip.is_reserved,
+                peer_ip.is_unspecified,
+            )
         ):
             raise ValueError("Logo URL resolved to a restricted network address.")
 
@@ -144,20 +148,23 @@ def _decode_with_pyzbar(image: Image.Image) -> Optional[list[str]]:
     if results:
         decoded_values: list[str] = []
         for result in results:
-            decoded_values.append(result.data.decode("utf-8"))
+            try:
+                decoded_values.append(result.data.decode("utf-8"))
+            except UnicodeDecodeError as exc:
+                raise ValueError("Decoded QR payload is not valid UTF-8 text.") from exc
         return decoded_values
     return None
 
 
-def _normalize_size(value: object, default: int = 400, min_size: int = 64, max_size: int = 2048) -> int:
+def _normalize_size(size_value: object, default: int = 400, min_size: int = 64, max_size: int = 2048) -> int:
     """Return a validated integer QR size."""
-    if value is None:
+    if size_value is None:
         return default
-    if not isinstance(value, int):
+    if not isinstance(size_value, int):
         raise ValueError("size must be an integer.")
-    if not min_size <= value <= max_size:
+    if not min_size <= size_value <= max_size:
         raise ValueError(f"size must be between {min_size} and {max_size}.")
-    return value
+    return size_value
 
 
 # ---------------------------------------------------------------------------
@@ -340,12 +347,12 @@ async def handle_call_tool(
 
         try:
             decoded_values = _decode_with_pyzbar(pil_img)
-        except UnicodeDecodeError:
+        except ValueError as exc:
             return [
                 types.TextContent(
                     type="text",
                     text=json.dumps({
-                        "error": "Decoded QR payload is not valid UTF-8 text.",
+                        "error": str(exc),
                     }),
                 )
             ]
