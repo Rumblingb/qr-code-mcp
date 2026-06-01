@@ -27,7 +27,7 @@ A [Model Context Protocol (MCP)](https://modelcontextprotocol.io) server that le
 ### Installation
 
 ```bash
-# Clone or create the project directory
+# Create the project directory
 mkdir qr-code-mcp && cd qr-code-mcp
 
 # Install dependencies
@@ -45,7 +45,7 @@ pip install pyzbar
 python server.py
 ```
 
-The server starts in **stdio mode**, ready to be connected by any MCP client.
+The server starts in **stdio mode**, ready to connect to any MCP client.
 
 ---
 
@@ -112,7 +112,7 @@ data = "https://example.com"
 logo_url = "https://example.com/logo.png"
 size = 400
 
-# Returns the same format as generate_qr with the logo centred
+# Returns the same format as `generate_qr` with the logo centred
 # on the QR code. If the logo download fails, the QR code is
 # returned without the logo and an error note is provided.
 ```
