@@ -1,4 +1,4 @@
 mcp>=1.0.0
 qrcode[pil]
 pillow
-requests
+pyzbar>=0.1.9

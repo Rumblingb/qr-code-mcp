@@ -11,9 +11,12 @@ Tools:
 
 import anyio
 import base64
+import ipaddress
 import io
 import json
+import socket
 import urllib.request
+from urllib.parse import urlparse
 from typing import Optional
 
 from mcp.server.lowlevel import Server, NotificationOptions
@@ -36,6 +39,29 @@ server = Server("qr-code-mcp")
 
 def _download_image(url: str) -> Image.Image:
     """Download an image from *url* and return it as a PIL ``Image``."""
+    parsed = urlparse(url)
+    if parsed.scheme not in {"http", "https"}:
+        raise ValueError("Only http/https logo URLs are supported.")
+    if not parsed.hostname:
+        raise ValueError("Logo URL must include a hostname.")
+
+    try:
+        address_info = socket.getaddrinfo(parsed.hostname, parsed.port or 443)
+    except socket.gaierror as exc:
+        raise ValueError(f"Unable to resolve logo host: {exc}") from exc
+
+    for _, _, _, _, sockaddr in address_info:
+        ip = ipaddress.ip_address(sockaddr[0])
+        if (
+            ip.is_private
+            or ip.is_loopback
+            or ip.is_link_local
+            or ip.is_multicast
+            or ip.is_reserved
+            or ip.is_unspecified
+        ):
+            raise ValueError("Logo URL host resolves to a restricted network address.")
+
     with urllib.request.urlopen(url, timeout=15) as resp:
         data = resp.read()
     return Image.open(io.BytesIO(data)).convert("RGBA")
@@ -90,7 +116,7 @@ def _base64_to_pil(data: str) -> Image.Image:
 # Helper: attempted decode via pyzbar (optional)
 # ---------------------------------------------------------------------------
 
-def _decode_with_pyzbar(image: Image.Image) -> Optional[str]:
+def _decode_with_pyzbar(image: Image.Image) -> Optional[list[str]]:
     """Try to decode a QR code with pyzbar. Return ``None`` if unavailable."""
     try:
         from pyzbar.pyzbar import decode as pyzbar_decode
@@ -99,8 +125,19 @@ def _decode_with_pyzbar(image: Image.Image) -> Optional[str]:
 
     results = pyzbar_decode(image.convert("L"))
     if results:
-        return results[0].data.decode("utf-8", errors="replace")
+        return [result.data.decode("utf-8", errors="replace") for result in results]
     return None
+
+
+def _normalize_size(value: object, default: int = 400, min_size: int = 64, max_size: int = 2048) -> int:
+    """Return a validated integer QR size."""
+    if value is None:
+        return default
+    if not isinstance(value, int):
+        raise ValueError("size must be an integer.")
+    if not min_size <= value <= max_size:
+        raise ValueError(f"size must be between {min_size} and {max_size}.")
+    return value
 
 
 # ---------------------------------------------------------------------------
@@ -203,7 +240,15 @@ async def handle_call_tool(
 
     if name == "generate_qr":
         data = arguments["data"]
-        size = arguments.get("size", 400)
+        try:
+            size = _normalize_size(arguments.get("size"))
+        except ValueError as exc:
+            return [
+                types.TextContent(
+                    type="text",
+                    text=json.dumps({"error": str(exc)}),
+                )
+            ]
         img = _generate_qr_core(data, size)
         b64 = _pil_to_base64_png(img)
         return [
@@ -219,7 +264,15 @@ async def handle_call_tool(
 
     elif name == "generate_qr_with_logo":
         data = arguments["data"]
-        size = arguments.get("size", 400)
+        try:
+            size = _normalize_size(arguments.get("size"))
+        except ValueError as exc:
+            return [
+                types.TextContent(
+                    type="text",
+                    text=json.dumps({"error": str(exc)}),
+                )
+            ]
         logo_url = arguments.get("logo_url", "")
 
         # Generate base QR code with a bit more error correction room
@@ -265,12 +318,15 @@ async def handle_call_tool(
                 )
             ]
 
-        decoded = _decode_with_pyzbar(pil_img)
-        if decoded is not None:
+        decoded_values = _decode_with_pyzbar(pil_img)
+        if decoded_values is not None:
             return [
                 types.TextContent(
                     type="text",
-                    text=json.dumps({"data": decoded}),
+                    text=json.dumps({
+                        "data": decoded_values[0],
+                        "data_all": decoded_values,
+                    }),
                 )
             ]
 

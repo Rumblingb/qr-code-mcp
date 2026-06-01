@@ -32,9 +32,6 @@ mkdir qr-code-mcp && cd qr-code-mcp
 
 # Install dependencies
 pip install -r requirements.txt
-
-# (Optional) Install pyzbar for QR decoding
-pip install pyzbar
 ```
 
 > **Note for Windows users**: `pyzbar` requires the [ZBar library](https://zbar.sourceforge.net/). Download the Windows build and ensure `zbar.dll` is on your `PATH`, or use the [Windows PyPI wheel](https://pypi.org/project/pyzbar/).
@@ -125,11 +122,10 @@ image_base64 = "iVBORw0KGgo..."
 
 # Returns:
 # {
-#   "data": "https://example.com"
+#   "data": "https://example.com",
+#   "data_all": ["https://example.com"]
 # }
 ```
-
-Requires `pyzbar`. If not installed, a helpful error message with install instructions is returned instead.
 
 ---
 
@@ -140,7 +136,7 @@ Requires `pyzbar`. If not installed, a helpful error message with install instru
 | Parameter | Type    | Default | Description                           |
 | --------- | ------- | ------- | ------------------------------------- |
 | `data`    | string  | --      | Text or URL to encode (required)      |
-| `size`    | integer | `400`   | Width/height of the output PNG        |
+| `size`    | integer | `400`   | Width/height of the output PNG (`64`-`2048`) |
 | `format`  | string  | `"png"` | Output format (currently only `"png"`) |
 
 ### `generate_qr_with_logo(data, logo_url?, size?)`
@@ -148,8 +144,8 @@ Requires `pyzbar`. If not installed, a helpful error message with install instru
 | Parameter  | Type    | Default | Description                                |
 | ---------- | ------- | ------- | ------------------------------------------ |
 | `data`     | string  | --      | Text or URL to encode (required)           |
-| `logo_url` | string  | `""`    | URL of the logo image to center on the QR  |
-| `size`     | integer | `400`   | Width/height of the output PNG             |
+| `logo_url` | string  | `""`    | Public `http`/`https` URL of the logo image |
+| `size`     | integer | `400`   | Width/height of the output PNG (`64`-`2048`) |
 
 ### `decode_qr(image_base64)`
 
