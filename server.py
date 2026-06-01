@@ -46,7 +46,8 @@ def _download_image(url: str) -> Image.Image:
         raise ValueError("Logo URL must include a hostname.")
 
     try:
-        address_info = socket.getaddrinfo(parsed.hostname, parsed.port or 443)
+        default_port = 443 if parsed.scheme == "https" else 80
+        address_info = socket.getaddrinfo(parsed.hostname, parsed.port or default_port)
     except socket.gaierror as exc:
         raise ValueError(f"Unable to resolve logo host: {exc}") from exc
 
@@ -319,7 +320,7 @@ async def handle_call_tool(
             ]
 
         decoded_values = _decode_with_pyzbar(pil_img)
-        if decoded_values is not None:
+        if decoded_values:
             return [
                 types.TextContent(
                     type="text",
