@@ -11,11 +11,11 @@ Tools:
 
 import anyio
 import base64
+import http.client
 import ipaddress
 import io
 import json
-import socket
-import urllib.request
+import ssl
 from urllib.parse import urlparse
 from typing import Optional
 
@@ -45,26 +45,42 @@ def _download_image(url: str) -> Image.Image:
     if not parsed.hostname:
         raise ValueError("Logo URL must include a hostname.")
 
+    default_port = 443 if parsed.scheme == "https" else 80
+    port = parsed.port or default_port
+    request_path = parsed.path or "/"
+    if parsed.query:
+        request_path = f"{request_path}?{parsed.query}"
+
+    if parsed.scheme == "https":
+        connection = http.client.HTTPSConnection(
+            parsed.hostname,
+            port=port,
+            timeout=15,
+            context=ssl.create_default_context(),
+        )
+    else:
+        connection = http.client.HTTPConnection(parsed.hostname, port=port, timeout=15)
+
     try:
-        default_port = 443 if parsed.scheme == "https" else 80
-        address_info = socket.getaddrinfo(parsed.hostname, parsed.port or default_port)
-    except socket.gaierror as exc:
-        raise ValueError(f"Unable to resolve logo host: {exc}") from exc
-
-    for _, _, _, _, sockaddr in address_info:
-        ip = ipaddress.ip_address(sockaddr[0])
+        connection.connect()
+        peer_ip = ipaddress.ip_address(connection.sock.getpeername()[0])
         if (
-            ip.is_private
-            or ip.is_loopback
-            or ip.is_link_local
-            or ip.is_multicast
-            or ip.is_reserved
-            or ip.is_unspecified
+            peer_ip.is_private
+            or peer_ip.is_loopback
+            or peer_ip.is_link_local
+            or peer_ip.is_multicast
+            or peer_ip.is_reserved
+            or peer_ip.is_unspecified
         ):
-            raise ValueError("Logo URL host resolves to a restricted network address.")
+            raise ValueError("Logo URL resolved to a restricted network address.")
 
-    with urllib.request.urlopen(url, timeout=15) as resp:
-        data = resp.read()
+        connection.request("GET", request_path, headers={"Host": parsed.hostname})
+        response = connection.getresponse()
+        if response.status >= 400:
+            raise ValueError(f"Logo URL returned HTTP {response.status}.")
+        data = response.read()
+    finally:
+        connection.close()
     return Image.open(io.BytesIO(data)).convert("RGBA")
 
 
@@ -126,7 +142,10 @@ def _decode_with_pyzbar(image: Image.Image) -> Optional[list[str]]:
 
     results = pyzbar_decode(image.convert("L"))
     if results:
-        return [result.data.decode("utf-8", errors="replace") for result in results]
+        decoded_values: list[str] = []
+        for result in results:
+            decoded_values.append(result.data.decode("utf-8"))
+        return decoded_values
     return None
 
 
@@ -319,7 +338,17 @@ async def handle_call_tool(
                 )
             ]
 
-        decoded_values = _decode_with_pyzbar(pil_img)
+        try:
+            decoded_values = _decode_with_pyzbar(pil_img)
+        except UnicodeDecodeError:
+            return [
+                types.TextContent(
+                    type="text",
+                    text=json.dumps({
+                        "error": "Decoded QR payload is not valid UTF-8 text.",
+                    }),
+                )
+            ]
         if decoded_values:
             return [
                 types.TextContent(
