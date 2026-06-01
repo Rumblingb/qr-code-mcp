@@ -144,7 +144,7 @@ image_base64 = "iVBORw0KGgo..."
 | Parameter  | Type    | Default | Description                                |
 | ---------- | ------- | ------- | ------------------------------------------ |
 | `data`     | string  | --      | Text or URL to encode (required)           |
-| `logo_url` | string  | `""`    | Public `http`/`https` URL of the logo image |
+| `logo_url` | string  | `""`    | Publicly accessible `http`/`https` URL of the logo image (private/internal IPs are blocked) |
 | `size`     | integer | `400`   | Width/height of the output PNG (`64`-`2048`) |
 
 ### `decode_qr(image_base64)`

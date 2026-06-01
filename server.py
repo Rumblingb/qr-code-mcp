@@ -65,7 +65,10 @@ def _download_image(url: str) -> Image.Image:
         connection.connect()
         if connection.sock is None:
             raise ValueError("Unable to establish a network connection to logo URL host.")
-        peer_ip = ipaddress.ip_address(connection.sock.getpeername()[0])
+        try:
+            peer_ip = ipaddress.ip_address(connection.sock.getpeername()[0])
+        except Exception as exc:
+            raise ValueError("Failed to determine peer IP address for logo URL validation.") from exc
         if any(
             (
                 peer_ip.is_private,
@@ -147,16 +150,16 @@ def _decode_with_pyzbar(image: Image.Image) -> Optional[list[str]]:
     results = pyzbar_decode(image.convert("L"))
     if results:
         decoded_values: list[str] = []
-        for result in results:
+        for index, result in enumerate(results):
             try:
                 decoded_values.append(result.data.decode("utf-8"))
             except UnicodeDecodeError as exc:
-                raise ValueError("Decoded QR payload is not valid UTF-8 text.") from exc
+                raise ValueError(f"QR code at index {index} contains non-UTF-8 data.") from exc
         return decoded_values
     return None
 
 
-def _normalize_size(size_value: object, default: int = 400, min_size: int = 64, max_size: int = 2048) -> int:
+def _normalize_size(size_value: int | None, default: int = 400, min_size: int = 64, max_size: int = 2048) -> int:
     """Return a validated integer QR size."""
     if size_value is None:
         return default
