@@ -12,7 +12,7 @@ A [Model Context Protocol (MCP)](https://modelcontextprotocol.io) server that le
 | Tool                    | Description                                      |
 | ----------------------- | ------------------------------------------------ |
 | `generate_qr`           | Generate a QR code PNG from text or a URL        |
-| `generate_qr_with_logo` | Generate a QR code with a centred logo image     |
+| `generate_qr_with_logo` | Generate a QR code with a centered logo image    |
 | `decode_qr`             | Decode a QR code from a base64-encoded PNG       |
 
 ---
@@ -112,7 +112,7 @@ data = "https://example.com"
 logo_url = "https://example.com/logo.png"
 size = 400
 
-# Returns the same format as `generate_qr` with the logo centred
+# Returns the same format as `generate_qr` with the logo centered
 # on the QR code. If the logo download fails, the QR code is
 # returned without the logo and an error note is provided.
 ```
@@ -148,7 +148,7 @@ Requires `pyzbar`. If not installed, a helpful error message with install instru
 | Parameter  | Type    | Default | Description                                |
 | ---------- | ------- | ------- | ------------------------------------------ |
 | `data`     | string  | --      | Text or URL to encode (required)           |
-| `logo_url` | string  | `""`    | URL of the logo image to centre on the QR  |
+| `logo_url` | string  | `""`    | URL of the logo image to center on the QR  |
 | `size`     | integer | `400`   | Width/height of the output PNG             |
 
 ### `decode_qr(image_base64)`
